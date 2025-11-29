@@ -5,6 +5,7 @@ import {
   FileText, Download, Eye, Trash2, RefreshCw, 
   Upload, X, AlertCircle, CheckCircle 
 } from 'lucide-react';
+// Fixed: Using RefreshCw instead of Refresh (which doesn't exist in lucide-react)
 
 interface Output {
   name: string;
