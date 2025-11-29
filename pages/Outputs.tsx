@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { useToast } from '../contexts/ToastContext';
 import { 
-  FileText, Download, Eye, Trash2, Refresh, 
+  FileText, Download, Eye, Trash2, RefreshCw, 
   Upload, X, AlertCircle, CheckCircle 
 } from 'lucide-react';
 
@@ -12,6 +13,7 @@ interface Output {
 }
 
 export const Outputs: React.FC = () => {
+  const { showSuccess, showError } = useToast();
   const [outputs, setOutputs] = useState<Output[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
@@ -45,7 +47,7 @@ export const Outputs: React.FC = () => {
       setViewDialogOpen(true);
     } catch (error) {
       console.error('Error loading file:', error);
-      alert('Failed to load file');
+      showError('Failed to load file');
     }
   };
 
@@ -57,10 +59,11 @@ export const Outputs: React.FC = () => {
     if (!window.confirm('Are you sure you want to delete all outputs?')) return;
     try {
       await api.clearOutputs();
+      showSuccess('All outputs cleared successfully!');
       loadOutputs();
     } catch (error) {
       console.error('Error clearing outputs:', error);
-      alert('Failed to clear outputs');
+      showError('Failed to clear outputs');
     }
   };
 
@@ -70,11 +73,11 @@ export const Outputs: React.FC = () => {
       await api.uploadInput(uploadFile, uploadType);
       setUploadDialogOpen(false);
       setUploadFile(null);
-      alert('File uploaded successfully!');
+      showSuccess('File uploaded successfully!');
       loadOutputs();
     } catch (error) {
       console.error('Error uploading file:', error);
-      alert('Failed to upload file');
+      showError('Failed to upload file');
     }
   };
 
@@ -103,7 +106,7 @@ export const Outputs: React.FC = () => {
               onClick={loadOutputs}
               className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-medium"
             >
-              <Refresh size={16} />
+              <RefreshCw size={16} />
               Refresh
             </button>
             <button
