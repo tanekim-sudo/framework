@@ -104,6 +104,17 @@ After backend is deployed:
   ```
   Vercel automatically redeploys! 🎉
 
+## 🔄 Iteration Workflow
+
+**It's that simple:**
+1. Make changes locally
+2. `git push`
+3. Vercel automatically builds and deploys
+4. Get preview URL for testing
+5. Promote to production when ready
+
+**See `VERCEL_ITERATION_WORKFLOW.md` for detailed workflow guide.**
+
 ---
 
 ## Alternative: Deploy via CLI (if you prefer)

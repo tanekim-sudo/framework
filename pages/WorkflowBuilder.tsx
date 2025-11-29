@@ -12,6 +12,7 @@ import {
 import { backendAIService } from '../services/backendAIService';
 import { api } from '../services/api';
 import { Badge } from '../components/ui/Badge';
+import { useToast } from '../contexts/ToastContext';
 
 // --- Types for Local UI State ---
 type ModalType = 'none' | 'dataSource' | 'export';
@@ -30,6 +31,7 @@ const DynamicIcon = ({ name, className }: { name: string, className?: string }) 
 };
 
 export const WorkflowBuilder: React.FC = () => {
+  const { showSuccess, showError, showWarning } = useToast();
   // --- Core State ---
   const [workflowName, setWorkflowName] = useState('Untitled Engagement');
   const [steps, setSteps] = useState<WorkflowStep[]>([]);
@@ -90,7 +92,7 @@ export const WorkflowBuilder: React.FC = () => {
 
   const handleSaveWorkflow = async () => {
     if (steps.length === 0) {
-      alert('Cannot save empty workflow');
+      showWarning('Cannot save empty workflow');
       return;
     }
     
@@ -108,11 +110,11 @@ export const WorkflowBuilder: React.FC = () => {
       };
       
       await api.createWorkflow(workflowData);
-      alert('Workflow saved successfully!');
+      showSuccess('Workflow saved successfully!');
       loadSavedWorkflows();
     } catch (error: any) {
       console.error('Error saving workflow:', error);
-      alert(error.response?.data?.error || 'Failed to save workflow');
+      showError(error.response?.data?.error || 'Failed to save workflow');
     } finally {
       setSaving(false);
     }
@@ -140,11 +142,11 @@ export const WorkflowBuilder: React.FC = () => {
         
         setSteps(loadedSteps);
         setLoadDialogOpen(false);
-        alert('Workflow loaded successfully!');
+        showSuccess('Workflow loaded successfully!');
       }
     } catch (error: any) {
       console.error('Error loading workflow:', error);
-      alert(error.response?.data?.error || 'Failed to load workflow');
+      showError(error.response?.data?.error || 'Failed to load workflow');
     }
   };
 
@@ -254,7 +256,17 @@ export const WorkflowBuilder: React.FC = () => {
       const prompt = currentStep.customPrompt || block.defaultPrompt || "";
       const previousOutput = i > 0 ? resetSteps[i-1].output : ""; 
       
-      const { reasoning, output } = await backendAIService.executeStepWithReasoning(prompt, previousOutput);
+      // Collect data from input context (data sources)
+      let contextData = previousOutput;
+      if (currentStep.inputContext && currentStep.inputContext.length > 0) {
+        const dataSources = currentStep.inputContext
+          .filter((ctx: any) => typeof ctx === 'object' && ctx.data)
+          .map((ctx: any) => ctx.data)
+          .join('\n\n---\n\n');
+        contextData = dataSources ? `${previousOutput}\n\n--- Data Sources ---\n\n${dataSources}` : previousOutput;
+      }
+      
+      const { reasoning, output } = await backendAIService.executeStepWithReasoning(prompt, contextData);
 
       // Update status to completed with output
       setSteps(prev => prev.map(s => s.id === currentStep.id ? { 
@@ -274,45 +286,182 @@ export const WorkflowBuilder: React.FC = () => {
 
   const getBlockById = (id: string) => MOCK_LIBRARY.find(b => b.id === id);
 
+  // --- Data Source State ---
+  const [dataSources, setDataSources] = useState<any[]>([]);
+  const [fetchingData, setFetchingData] = useState(false);
+  const [dataSourceError, setDataSourceError] = useState('');
+
+  const fetchAvailableData = async () => {
+    setFetchingData(true);
+    setDataSourceError('');
+    try {
+      const response = await api.fetchDataSources(['gdrive', 'fireflies']);
+      if (response.success) {
+        const sources: any[] = [];
+        
+        // Add Google Drive sources
+        if (response.data.gdrive) {
+          const gdrive = response.data.gdrive;
+          if (gdrive.transcripts) {
+            sources.push({
+              id: 'gdrive_transcripts',
+              name: 'Google Drive - Transcripts',
+              type: 'gdrive',
+              icon: FileText,
+              sub: 'Meeting transcripts from Google Drive',
+              data: gdrive.transcripts,
+            });
+          }
+          if (gdrive.client_notes) {
+            sources.push({
+              id: 'gdrive_notes',
+              name: 'Google Drive - Client Notes',
+              type: 'gdrive',
+              icon: FileText,
+              sub: 'Client documentation from Google Drive',
+              data: gdrive.client_notes,
+            });
+          }
+          if (gdrive.org_data) {
+            sources.push({
+              id: 'gdrive_org',
+              name: 'Google Drive - Organization Data',
+              type: 'gdrive',
+              icon: FileSpreadsheet,
+              sub: 'Organizational data from Google Drive',
+              data: gdrive.org_data,
+            });
+          }
+        }
+        
+        // Add Fireflies sources
+        if (response.data.fireflies && response.data.fireflies.transcripts) {
+          sources.push({
+            id: 'fireflies_transcripts',
+            name: 'Fireflies - Meeting Transcripts',
+            type: 'fireflies',
+            icon: Database,
+            sub: 'Meeting transcripts from Fireflies',
+            data: response.data.fireflies.transcripts,
+          });
+        }
+        
+        // Add combined source
+        if (response.data.combined) {
+          const combined = response.data.combined;
+          if (combined.transcripts || combined.client_notes || combined.org_data) {
+            sources.push({
+              id: 'combined_all',
+              name: 'All Data Sources (Combined)',
+              type: 'combined',
+              icon: Globe,
+              sub: 'All available data combined',
+              data: `${combined.transcripts || ''}\n\n${combined.client_notes || ''}\n\n${combined.org_data || ''}`.trim(),
+            });
+          }
+        }
+        
+        setDataSources(sources);
+        
+        if (sources.length === 0) {
+          setDataSourceError('No data sources available. Please configure Google Drive or Fireflies in Configuration.');
+        }
+      } else {
+        setDataSourceError(response.error || 'Failed to fetch data sources');
+      }
+    } catch (error: any) {
+      console.error('Error fetching data sources:', error);
+      setDataSourceError(error.response?.data?.error || 'Failed to fetch data sources');
+    } finally {
+      setFetchingData(false);
+    }
+  };
+
   // --- Sub-components ---
 
-  const DataSourceModal = () => (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white dark:bg-[#0B101B] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up">
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
-          <h3 className="font-serif font-medium text-lg text-slate-900 dark:text-white">Connect Data Source</h3>
-          <button onClick={() => setActiveModal('none')} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={18}/></button>
-        </div>
-        <div className="p-2 space-y-1">
-          {[
-            { id: 'ds1', name: 'Client_Transcripts_Q3.pdf', type: 'pdf', icon: FileText, sub: 'Uploaded 2m ago' },
-            { id: 'ds2', name: 'Financial_Model_v2.csv', type: 'csv', icon: FileSpreadsheet, sub: 'Google Drive' },
-            { id: 'ds3', name: 'Salesforce_Oppty_Export', type: 'salesforce', icon: Database, sub: 'CRM Integration' },
-          ].map(ds => (
-            <button 
-              key={ds.id}
-              onClick={() => handleAttachSource(ds.name)}
-              className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left group"
-            >
-              <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">
-                <ds.icon size={20} />
+  const DataSourceModal = () => {
+    useEffect(() => {
+      if (activeModal === 'dataSource') {
+        fetchAvailableData();
+      }
+    }, [activeModal]);
+
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-fade-in">
+        <div className="bg-white dark:bg-[#0B101B] border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl w-full max-w-md overflow-hidden animate-slide-up">
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center">
+            <h3 className="font-serif font-medium text-lg text-slate-900 dark:text-white">Connect Data Source</h3>
+            <button onClick={() => setActiveModal('none')} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"><X size={18}/></button>
+          </div>
+          <div className="p-2 space-y-1 max-h-96 overflow-y-auto">
+            {fetchingData ? (
+              <div className="flex items-center justify-center p-8">
+                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                <span className="ml-3 text-slate-600 dark:text-slate-400">Fetching data sources...</span>
               </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{ds.name}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">{ds.sub}</p>
+            ) : dataSourceError ? (
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-700 dark:text-red-300">{dataSourceError}</p>
               </div>
-              <Plus size={16} className="ml-auto text-slate-300 group-hover:text-blue-500" />
+            ) : dataSources.length === 0 ? (
+              <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                <p className="text-sm text-slate-600 dark:text-slate-400">No data sources available. Configure Google Drive or Fireflies in Settings.</p>
+              </div>
+            ) : (
+              dataSources.map(ds => (
+                <button 
+                  key={ds.id}
+                  onClick={() => {
+                    // Attach the data source and include the actual data
+                    if (activeStepIdForModal) {
+                      setSteps(prev => prev.map(s => 
+                        s.id === activeStepIdForModal 
+                          ? { 
+                              ...s, 
+                              inputContext: [...(s.inputContext || []), {
+                                name: ds.name,
+                                type: ds.type,
+                                data: ds.data
+                              }]
+                            }
+                          : s
+                      ));
+                    }
+                    setActiveModal('none');
+                    setActiveStepIdForModal(null);
+                    showSuccess(`Connected ${ds.name} to workflow step`);
+                  }}
+                  className="w-full flex items-center gap-4 p-3 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left group"
+                >
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <ds.icon size={20} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{ds.name}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{ds.sub}</p>
+                {ds.data && (
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                    {ds.data.length > 100 ? `${ds.data.substring(0, 100)}...` : ds.data.substring(0, 100)} characters
+                  </p>
+                )}
+              </div>
+              <Plus size={16} className="ml-auto text-slate-300 group-hover:text-blue-500 flex-shrink-0" />
             </button>
-          ))}
-           <div className="p-3">
-            <button className="w-full py-2 border border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-400 hover:border-blue-500 hover:text-blue-500 transition-colors">
-              + Upload New File
-            </button>
-           </div>
+              ))}
+            <div className="p-3 border-t border-slate-100 dark:border-slate-800">
+              <button 
+                onClick={fetchAvailableData}
+                className="w-full py-2 border border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-400 hover:border-blue-500 hover:text-blue-500 transition-colors flex items-center justify-center gap-2"
+              >
+                <Loader2 size={14} className={fetchingData ? "animate-spin" : "hidden"} />
+                Refresh Data Sources
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const ExportModal = () => (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/40 backdrop-blur-sm animate-fade-in">

@@ -4,6 +4,8 @@ import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
 import { WorkflowBuilder } from './pages/WorkflowBuilder';
 import { Library } from './pages/Library';
+import { Frameworks } from './pages/Frameworks';
+import { ExecutionHistory } from './pages/ExecutionHistory';
 import { Configuration } from './pages/Configuration';
 import { Outputs } from './pages/Outputs';
 import { Login } from './pages/Login';
@@ -34,6 +36,10 @@ const App: React.FC = () => {
       setActiveTab('builder');
     } else if (path === '/library') {
       setActiveTab('library');
+    } else if (path === '/frameworks') {
+      setActiveTab('frameworks');
+    } else if (path === '/history' || path === '/executions') {
+      setActiveTab('history');
     } else if (path === '/configuration') {
       setActiveTab('configuration');
     } else if (path === '/outputs') {
@@ -94,6 +100,9 @@ const App: React.FC = () => {
                 <Route path="/builder" element={<WorkflowBuilder />} />
                 <Route path="/workflow" element={<WorkflowBuilder />} />
                 <Route path="/library" element={<Library />} />
+                <Route path="/frameworks" element={<Frameworks />} />
+                <Route path="/history" element={<ExecutionHistory />} />
+                <Route path="/executions" element={<ExecutionHistory />} />
                 <Route path="/configuration" element={<Configuration />} />
                 <Route path="/outputs" element={<Outputs />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

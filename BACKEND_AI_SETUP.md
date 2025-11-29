@@ -2,7 +2,7 @@
 
 ## Overview
 
-The frontend has been updated to use **Claude via the Backend API** instead of direct Gemini calls. This provides better security, centralized API key management, and consistent model usage.
+The frontend has been updated to use **Claude via the Backend API** using the **exact same pattern as Smooth**. This uses the same environment variables, same API key, and same Claude client initialization.
 
 ## Frontend Changes
 
@@ -13,7 +13,47 @@ The frontend has been updated to use **Claude via the Backend API** instead of d
   - `POST /api/ai/execute` - Execute workflow steps with reasoning
   - `POST /api/ai/generate-block` - Generate new workflow blocks
 
-## Backend Requirements
+## Backend Implementation
+
+✅ **Completed:**
+- Added endpoints to `api_server.py` using **exact same pattern as `workflow_engine.py`**
+- Uses same `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` from `.env` file
+- Uses same `Anthropic` client initialization
+- Uses same API call pattern: `client.messages.create()`
+
+The endpoints are already implemented in your backend at:
+- `POST /api/ai/execute` 
+- `POST /api/ai/generate-block`
+
+## Environment Variables
+
+The backend uses the **exact same `.env` file** as Smooth:
+
+```env
+ANTHROPIC_API_KEY=your_key_here
+ANTHROPIC_MODEL=claude-sonnet-4-5-20250929
+```
+
+These are loaded via `config.py` using `dotenv`, exactly like Smooth does.
+
+## How It Works
+
+The implementation uses the **exact same code pattern** as `workflow_engine.py`:
+
+1. **Load config**: `cfg.ANTHROPIC_API_KEY` and `cfg.ANTHROPIC_MODEL` from `.env`
+2. **Initialize client**: `client = Anthropic(api_key=cfg.ANTHROPIC_API_KEY)`
+3. **Make API call**: `client.messages.create(model=cfg.ANTHROPIC_MODEL, max_tokens=4000, messages=[...])`
+4. **Extract response**: `response.content[0].text`
+
+## Testing
+
+The endpoints are ready to use. No additional backend setup needed - just ensure your `.env` file has:
+- `ANTHROPIC_API_KEY` set
+- `ANTHROPIC_MODEL` set (defaults to `claude-sonnet-4-5-20250929`)
+
+---
+
+## Old Documentation (for reference)
 
 You need to implement these endpoints in your backend API:
 

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { Badge } from '../components/ui/Badge';
 import { 
   Search, Plus, Edit, Trash2, X, Save, Copy, 
-  ShieldCheck, Layers, Tag, FileText, AlertCircle 
+  ShieldCheck, Layers, Tag, FileText, AlertCircle, Users
 } from 'lucide-react';
 
 interface Block {
@@ -23,11 +24,14 @@ interface Block {
 
 export const Library: React.FC = () => {
   const { user } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedTeamMember, setSelectedTeamMember] = useState<string>('');
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [libraryTab, setLibraryTab] = useState<'firm' | 'project'>('firm');
   const [openDialog, setOpenDialog] = useState(false);
   const [editingBlock, setEditingBlock] = useState<Block | null>(null);
@@ -43,7 +47,10 @@ export const Library: React.FC = () => {
   useEffect(() => {
     loadBlocks();
     loadCategories();
-  }, [searchTerm, selectedCategory, libraryTab]);
+    if (libraryTab === 'project') {
+      loadTeamMembers();
+    }
+  }, [searchTerm, selectedCategory, libraryTab, selectedTeamMember]);
 
   const loadBlocks = async () => {
     setLoading(true);
@@ -51,6 +58,7 @@ export const Library: React.FC = () => {
       const filters: any = {};
       if (searchTerm) filters.search = searchTerm;
       if (selectedCategory) filters.category = selectedCategory;
+      if (selectedTeamMember) filters.created_by = selectedTeamMember;
       
       // Filter by template status based on tab
       if (libraryTab === 'firm') {
@@ -82,6 +90,37 @@ export const Library: React.FC = () => {
       }
     } catch (error) {
       console.error('Error loading categories:', error);
+    }
+  };
+
+  const loadTeamMembers = async () => {
+    try {
+      const response = await api.getTeamMembers();
+      if (response.success) {
+        setTeamMembers(response.members || []);
+      }
+    } catch (error) {
+      console.error('Error loading team members:', error);
+    }
+  };
+
+  const handleCopyToPersonal = async (blockId: string) => {
+    try {
+      await api.copyBlockToPersonal(blockId);
+      showSuccess('Block copied to your personal library!');
+      loadBlocks();
+    } catch (error: any) {
+      showError(error.response?.data?.error || 'Failed to copy block');
+    }
+  };
+
+  const handleUploadToTeam = async (blockId: string) => {
+    try {
+      await api.uploadBlockToTeam(blockId);
+      showSuccess('Block uploaded to team library!');
+      loadBlocks();
+    } catch (error: any) {
+      showError(error.response?.data?.error || 'Failed to upload block');
     }
   };
 
@@ -143,10 +182,10 @@ export const Library: React.FC = () => {
             ...formData,
             is_personal: true,
           });
-          alert('Block saved as copy to your personal library!');
+          showSuccess('Block saved as copy to your personal library!');
         } else {
           await api.updateBlock(editingBlock.id, formData);
-          alert('Block updated!');
+          showSuccess('Block updated!');
         }
       } else {
         await api.createBlock({
@@ -154,16 +193,16 @@ export const Library: React.FC = () => {
           is_template: false,
           is_personal: true,
         });
-        alert('Block created!');
+        showSuccess('Block created!');
       }
       handleCloseDialog();
       loadBlocks();
     } catch (error: any) {
       console.error('Error saving block:', error);
       if (error.response?.data?.requires_copy) {
-        alert('You do not own this block. Please use "Save as Copy" instead.');
+        showError('You do not own this block. Please use "Save as Copy" instead.');
       } else {
-        alert(error.response?.data?.error || 'Error saving block. Please try again.');
+        showError(error.response?.data?.error || 'Error saving block. Please try again.');
       }
     }
   };
@@ -173,10 +212,11 @@ export const Library: React.FC = () => {
     
     try {
       await api.deleteBlock(blockId);
+      showSuccess('Block deleted successfully!');
       loadBlocks();
     } catch (error) {
       console.error('Error deleting block:', error);
-      alert('Error deleting block. Please try again.');
+      showError('Error deleting block. Please try again.');
     }
   };
 
@@ -284,11 +324,26 @@ export const Library: React.FC = () => {
                 <option key={cat} value={cat}>{cat}</option>
               ))}
             </select>
-            {(searchTerm || selectedCategory) && (
+            {libraryTab === 'project' && teamMembers.length > 0 && (
+              <select
+                value={selectedTeamMember}
+                onChange={(e) => setSelectedTeamMember(e.target.value)}
+                className="px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+              >
+                <option value="">All Team Members</option>
+                {teamMembers.map(member => (
+                  <option key={member.user_id} value={member.user_id}>
+                    {member.user_id} ({member.block_count} blocks)
+                  </option>
+                ))}
+              </select>
+            )}
+            {(searchTerm || selectedCategory || selectedTeamMember) && (
               <button
                 onClick={() => {
                   setSearchTerm('');
                   setSelectedCategory('');
+                  setSelectedTeamMember('');
                 }}
                 className="px-4 py-2 text-sm text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"
               >
@@ -323,6 +378,30 @@ export const Library: React.FC = () => {
                   {block.name}
                 </h3>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {!block.is_template && !block.is_personal && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleCopyToPersonal(block.id);
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg transition-colors"
+                      title="Copy to Personal"
+                    >
+                      <Copy size={16} />
+                    </button>
+                  )}
+                  {!block.is_template && block.is_personal && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleUploadToTeam(block.id);
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+                      title="Upload to Team"
+                    >
+                      <Users size={16} />
+                    </button>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();

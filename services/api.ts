@@ -112,6 +112,21 @@ export const api = {
     return response.data;
   },
 
+  copyBlockToPersonal: async (blockId: string) => {
+    const response = await axiosInstance.post(`/smooth/blocks/${blockId}/copy-to-personal`, {});
+    return response.data;
+  },
+
+  uploadBlockToTeam: async (blockId: string, teamId?: string) => {
+    const response = await axiosInstance.post(`/smooth/blocks/${blockId}/upload-to-team`, { team_id: teamId });
+    return response.data;
+  },
+
+  getTeamMembers: async () => {
+    const response = await axiosInstance.get('/smooth/blocks/team-members');
+    return response.data;
+  },
+
   // ==================== Frameworks API ====================
   listFrameworks: async (filters: Record<string, any> = {}) => {
     const params = new URLSearchParams();
@@ -193,6 +208,12 @@ export const api = {
     return response.data;
   },
 
+  // ==================== Data Sources API ====================
+  fetchDataSources: async (sources: string[] = ['gdrive', 'fireflies']) => {
+    const response = await axiosInstance.post('/smooth/data/fetch', { sources });
+    return response.data;
+  },
+
   // ==================== Workflows API ====================
   listWorkflows: async (filters: Record<string, any> = {}) => {
     const params = new URLSearchParams();
@@ -230,6 +251,23 @@ export const api = {
       inputs,
       project_id: projectId,
     });
+    return response.data;
+  },
+
+  getExecution: async (executionId: string) => {
+    const response = await axiosInstance.get(`/smooth/executions/${executionId}`);
+    return response.data;
+  },
+
+  listExecutions: async (workflowId?: string, filters: Record<string, any> = {}) => {
+    const params = new URLSearchParams();
+    if (workflowId) params.append('workflow_id', workflowId);
+    Object.keys(filters).forEach(key => {
+      if (filters[key] !== undefined && filters[key] !== null) {
+        params.append(key, String(filters[key]));
+      }
+    });
+    const response = await axiosInstance.get(`/smooth/executions?${params.toString()}`);
     return response.data;
   },
 

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LayoutGrid, PlusCircle, Library, LogOut, Users, ChevronDown, Settings, FileText } from 'lucide-react';
+import { LayoutGrid, PlusCircle, Library, LogOut, Users, ChevronDown, Settings, FileText, Layers, History } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { useToast } from '../contexts/ToastContext';
 import { api } from '../services/api';
 
 interface SidebarProps {
@@ -12,6 +13,7 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
   const navigate = useNavigate();
   const { user, currentTeam, logout, switchTeam } = useAuth();
+  const { showSuccess, showError } = useToast();
   const [showTeamMenu, setShowTeamMenu] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -19,6 +21,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
     { id: 'dashboard', label: 'Dashboard', icon: LayoutGrid, path: '/' },
     { id: 'builder', label: 'Workflow', icon: PlusCircle, path: '/builder' },
     { id: 'library', label: 'Library', icon: Library, path: '/library' },
+    { id: 'frameworks', label: 'Frameworks', icon: Layers, path: '/frameworks' },
+    { id: 'history', label: 'History', icon: History, path: '/history' },
     { id: 'outputs', label: 'Outputs', icon: FileText, path: '/outputs' },
     { id: 'configuration', label: 'Settings', icon: Settings, path: '/configuration' },
   ];
@@ -46,10 +50,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
       if (response.success) {
         const inviteUrl = `${window.location.origin}/login?code=${response.invite_code}`;
         navigator.clipboard.writeText(inviteUrl);
-        alert(`Invite link copied to clipboard!\n\n${inviteUrl}\n\nShare this link to invite team members.`);
+        showSuccess('Invite link copied to clipboard! Share it with your team members.');
       }
     } catch (error) {
-      alert('Failed to create invite code');
+      showError('Failed to create invite code');
     }
   };
 
