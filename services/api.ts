@@ -275,6 +275,22 @@ export const api = {
     });
     return response.data;
   },
+
+  // ==================== AI Execution API ====================
+  executeAI: async (prompt: string, contextData: string = '') => {
+    const response = await axiosInstance.post('/ai/execute', {
+      prompt,
+      context_data: contextData,
+    });
+    return response.data;
+  },
+
+  generateBlock: async (intent: string) => {
+    const response = await axiosInstance.post('/ai/generate-block', {
+      intent,
+    });
+    return response.data;
+  },
 };
 
 export default api;

@@ -9,7 +9,7 @@ import {
   GripVertical, Lock, ShieldCheck, Share2, 
   FileSpreadsheet, FileJson, Presentation, Globe
 } from 'lucide-react';
-import { geminiService } from '../services/geminiService';
+import { backendAIService } from '../services/backendAIService';
 import { api } from '../services/api';
 import { Badge } from '../components/ui/Badge';
 
@@ -163,7 +163,7 @@ export const WorkflowBuilder: React.FC = () => {
   const handleSmartGenerate = async () => {
     if (!smartPrompt.trim()) return;
     setIsSmartGenerating(true);
-    const newBlock = await geminiService.generateSmartBlock(smartPrompt);
+    const newBlock = await backendAIService.generateSmartBlock(smartPrompt);
     setIsSmartGenerating(false);
 
     if (newBlock) {
@@ -221,7 +221,7 @@ export const WorkflowBuilder: React.FC = () => {
     setActiveModal('export');
   };
 
-  // Direct execution using Gemini (fallback when Flowise not available)
+  // Direct execution using Backend Claude (fallback when Flowise not available)
   const runWorkflow = async () => {
     if (steps.length === 0) return;
     setExecutionState('running');
@@ -250,11 +250,11 @@ export const WorkflowBuilder: React.FC = () => {
       // Simulate inputs being fed
       await new Promise(r => setTimeout(r, 600));
 
-      // Execute via Gemini
+      // Execute via Backend Claude
       const prompt = currentStep.customPrompt || block.defaultPrompt || "";
       const previousOutput = i > 0 ? resetSteps[i-1].output : ""; 
       
-      const { reasoning, output } = await geminiService.executeStepWithReasoning(prompt, previousOutput);
+      const { reasoning, output } = await backendAIService.executeStepWithReasoning(prompt, previousOutput);
 
       // Update status to completed with output
       setSteps(prev => prev.map(s => s.id === currentStep.id ? { 
