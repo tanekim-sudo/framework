@@ -435,19 +435,20 @@ export const WorkflowBuilder: React.FC = () => {
                 >
                   <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-500 flex items-center justify-center group-hover:scale-110 transition-transform">
                     <ds.icon size={20} />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{ds.name}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{ds.sub}</p>
-                {ds.data && (
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                    {ds.data.length > 100 ? `${ds.data.substring(0, 100)}...` : ds.data.substring(0, 100)} characters
-                  </p>
-                )}
-              </div>
-              <Plus size={16} className="ml-auto text-slate-300 group-hover:text-blue-500 flex-shrink-0" />
-            </button>
-              ))}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">{ds.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{ds.sub}</p>
+                    {ds.data && (
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
+                        {ds.data.length > 100 ? `${ds.data.substring(0, 100)}...` : ds.data.substring(0, 100)} characters
+                      </p>
+                    )}
+                  </div>
+                  <Plus size={16} className="ml-auto text-slate-300 group-hover:text-blue-500 flex-shrink-0" />
+                </button>
+              ))
+            )}
             <div className="p-3 border-t border-slate-100 dark:border-slate-800">
               <button 
                 onClick={fetchAvailableData}
